@@ -234,7 +234,6 @@ const WorkOrderManagement = () => {
   <AddIcon />
 </Fab>
 
-
           
           {selected.length > 0 && (
             <Tooltip title="Delete">
@@ -245,8 +244,9 @@ const WorkOrderManagement = () => {
           )}
         </Toolbar>
 
-        <TableContainer>
-          <Table size={dense ? 'small' : 'medium'}>
+        {/* Sticky header with scrollable container */}
+        <TableContainer sx={{ maxHeight: '70vh' }}> {/* Set maxHeight to 70vh for dynamic height */}
+          <Table size={dense ? 'small' : 'medium'} stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ width: '50px' }}>
