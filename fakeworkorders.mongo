@@ -1,0 +1,17 @@
+const workorders = [];  // Changed variable name to match collection name
+for (let i = 1; i <= 50; i++) {
+  workorders.push({
+    workOrderId: Math.floor(100000000 + Math.random() * 900000000),  // Random 9-digit work order ID
+    taskType: ["Cooling Issue", "Electrical Issue", "Plumbing Issues", "Lighting Issues"][Math.floor(Math.random() * 4)],
+    roomNumber: `Room ${Math.floor(Math.random() * 100) + 1}`,  // Random room number between 1 and 100
+    details: `This is a test work order for room ${Math.floor(Math.random() * 100) + 1}.`,  // Random test details
+    priority: ["Low", "Medium", "High"][Math.floor(Math.random() * 3)],  // Random priority
+    status: ["new", "pending", "closed", "delayed"][Math.floor(Math.random() * 4)],  // Random status
+    submittedBy: ObjectId("670a7539f4571eec580eccf2"),  // Replace with an actual user ObjectId from your database
+    createdDate: new Date(),
+    modifiedDate: new Date(),
+    attachments: [],  // Empty attachments array for now
+  });
+}
+
+db.workorders.insertMany(workorders);  // Changed collection name to 'workorders'
