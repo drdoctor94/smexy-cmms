@@ -79,6 +79,13 @@ const theme = createTheme({
         },
       },
     },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: '#000000', // Darker modal background color
+        }
+      }
+    }
   },
 });
 

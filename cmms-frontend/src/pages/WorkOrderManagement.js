@@ -17,7 +17,7 @@ import {
   Box,
   Fab,
   Switch,
-  FormControlLabel
+  FormControlLabel,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -154,12 +154,16 @@ const WorkOrderManagement = () => {
     }
 
     const promises = selected.map((_id) =>
-      axios.delete(`/api/work-orders/${_id}`)
+      axios
+        .delete(`/api/work-orders/${_id}`)
         .then(() => {
           console.log(`Deleted work order with _id: ${_id}`);
         })
-        .catch(error => {
-          console.error(`Failed to delete work order with _id: ${_id}`, error.response ? error.response.data : error.message);
+        .catch((error) => {
+          console.error(
+            `Failed to delete work order with _id: ${_id}`,
+            error.response ? error.response.data : error.message
+          );
         })
     );
 
@@ -215,26 +219,25 @@ const WorkOrderManagement = () => {
             </Typography>
           )}
 
-<Fab
-  color="primary"
-  aria-label="add"
-  onClick={handleOpenModal}
-  sx={{
-    ml: 2,
-    width: 45, // Ensures width is the same as height
-    height: 45, // Same height to maintain the circular shape
-    borderRadius: '50%', // Ensures it's a perfect circle
-    minWidth: '45px', // Prevents shrinking below this size
-    minHeight: '45px', // Prevents shrinking below this size
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  }}
->
-  <AddIcon />
-</Fab>
+          <Fab
+            color="primary"
+            aria-label="add"
+            onClick={handleOpenModal}
+            sx={{
+              ml: 2,
+              width: 45, // Ensures width is the same as height
+              height: 45, // Same height to maintain the circular shape
+              borderRadius: '50%', // Ensures it's a perfect circle
+              minWidth: '45px', // Prevents shrinking below this size
+              minHeight: '45px', // Prevents shrinking below this size
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <AddIcon />
+          </Fab>
 
-          
           {selected.length > 0 && (
             <Tooltip title="Delete">
               <IconButton onClick={handleDeleteSelected}>
@@ -244,9 +247,15 @@ const WorkOrderManagement = () => {
           )}
         </Toolbar>
 
-        {/* Sticky header with scrollable container */}
-        <TableContainer sx={{ maxHeight: '70vh' }}> {/* Set maxHeight to 70vh for dynamic height */}
-          <Table size={dense ? 'small' : 'medium'} stickyHeader>
+        {/* Updated TableContainer without touchAction and adjusted styles */}
+        <TableContainer
+          sx={{
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: '-ms-autohiding-scrollbar',
+          }}
+        >
+          <Table size={dense ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ width: '50px' }}>
@@ -324,8 +333,12 @@ const WorkOrderManagement = () => {
                     <TableCell>{order.roomNumber}</TableCell>
                     <TableCell>{capitalizeFirstLetter(order.status)}</TableCell>
                     <TableCell>{order.priority}</TableCell>
-                    <TableCell>{order.assignedTo ? order.assignedTo.name : 'Unassigned'}</TableCell>
-                    <TableCell>{new Date(order.createdDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {order.assignedTo ? order.assignedTo.name : 'Unassigned'}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.createdDate).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>{order.age}</TableCell>
                   </TableRow>
                 );
@@ -350,9 +363,9 @@ const WorkOrderManagement = () => {
         label="Dense padding"
       />
 
-      <WorkOrderFormModal 
-        open={openModal} 
-        handleClose={handleCloseModal} 
+      <WorkOrderFormModal
+        open={openModal}
+        handleClose={handleCloseModal}
         onWorkOrderSubmit={fetchWorkOrders}
       />
 

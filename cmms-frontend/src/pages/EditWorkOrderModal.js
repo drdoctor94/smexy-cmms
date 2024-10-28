@@ -55,7 +55,7 @@ const taskTypes = [
 
 const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Determine if it's mobile or not
 
   const [formData, setFormData] = useState({
     status: '',
@@ -73,9 +73,9 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
   const [originalFormData, setOriginalFormData] = useState(null);
   const [selectedTab, setSelectedTab] = useState(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [undoing, setUndoing] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [tooltipText, setTooltipText] = useState("Copy Task ID"); // New state for tooltip
+  const [tooltipText, setTooltipText] = useState("Copy Task ID");
+  const [tooltipOpen, setTooltipOpen] = useState(false); // Control tooltip state
+  const [selectedFiles, setSelectedFiles] = useState([]); // State for file selection
 
   useEffect(() => {
     if (workOrder) {
@@ -98,67 +98,15 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     }
   }, [workOrder]);
 
+  const handleTabChange = (event, newValue) => {
+    setSelectedTab(newValue);
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setSelectedTab(newValue);
-  };
-
-  const handleFileChange = (e) => {
-    setSelectedFiles(e.target.files);
-  };
-
-  const handleUploadAttachments = async () => {
-    if (!workOrder._id) {
-      alert('Work order ID is missing');
-      return;
-    }
-    if (selectedFiles.length === 0) {
-      alert('Please select at least one file.');
-      return;
-    }
-
-    const uploadData = new FormData();
-    for (let i = 0; i < selectedFiles.length; i++) {
-      uploadData.append('files', selectedFiles[i]);
-    }
-
-    try {
-      const response = await axios.post(`/api/work-orders/${workOrder._id}/attachments`, uploadData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      setFormData({
-        ...formData,
-        attachments: response.data.attachments,
-      });
-
-      alert('Attachments uploaded successfully!');
-    } catch (error) {
-      alert('Failed to upload attachments. Please try again.');
-    }
-  };
-
-  const handleDownloadAttachment = (attachmentPath) => {
-    const url = `${process.env.REACT_APP_API_URL}/${attachmentPath}`;
-    window.open(url, '_blank');
-  };
-
-  const handleDeleteAttachment = async (filename) => {
-    try {
-      const response = await axios.delete(`/api/work-orders/${workOrder._id}/attachments/${filename}`);
-      setFormData({
-        ...formData,
-        attachments: response.data.attachments,
-      });
-    } catch (error) {
-      alert('Failed to delete attachment.');
-    }
   };
 
   const handleAddNote = async () => {
@@ -198,6 +146,59 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     }
   };
 
+  const handleDownloadAttachment = (attachmentPath) => {
+    const url = `${process.env.REACT_APP_API_URL}/${attachmentPath}`;
+    window.open(url, '_blank');
+  };
+
+  const handleDeleteAttachment = async (filename) => {
+    try {
+      const response = await axios.delete(`/api/work-orders/${workOrder._id}/attachments/${filename}`);
+      setFormData({
+        ...formData,
+        attachments: response.data.attachments,
+      });
+    } catch (error) {
+      alert('Failed to delete attachment.');
+    }
+  };
+
+  // Function to handle file selection for uploading attachments
+  const handleFileChange = (e) => {
+    setSelectedFiles(e.target.files);
+  };
+
+  const handleUploadAttachments = async () => {
+    if (!workOrder._id) {
+      alert('Work order ID is missing');
+      return;
+    }
+    if (selectedFiles.length === 0) {
+      alert('Please select at least one file.');
+      return;
+    }
+
+    const uploadData = new FormData();
+    for (let i = 0; i < selectedFiles.length; i++) {
+      uploadData.append('files', selectedFiles[i]);
+    }
+
+    try {
+      const response = await axios.post(`/api/work-orders/${workOrder._id}/attachments`, uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setFormData({
+        ...formData,
+        attachments: response.data.attachments,
+      });
+
+      alert('Attachments uploaded successfully!');
+    } catch (error) {
+      alert('Failed to upload attachments. Please try again.');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!workOrder || !workOrder._id) {
       return;
@@ -229,58 +230,57 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
         return;
       }
 
-      setUndoing(true);
-
       setFormData(originalFormData);
 
       await axios.put(`/api/work-orders/${originalFormData._id}`, originalFormData);
 
       fetchWorkOrders();
       setSnackbarOpen(false);
-      setUndoing(false);
     } catch (error) {
-      setUndoing(false);
+      console.error('Failed to undo changes.', error);
     }
   };
 
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway' || undoing) {
-      return;
-    }
+  const handleCloseSnackbar = () => {
     setSnackbarOpen(false);
   };
 
-  const dialogStyle = {
-    fullWidth: true,
-    maxWidth: 'md',
-    ...(isMobile && { fullScreen: true }), // Fullscreen on mobile devices
-  };
-
-  // Function to copy Task ID to clipboard
   const handleCopyTaskId = async () => {
     if (workOrder?.workOrderId) {
       try {
         await navigator.clipboard.writeText(workOrder.workOrderId);
-        setTooltipText("Copied!"); // Set tooltip to "Copied!"
+        setTooltipText("Copied!");
+        setTooltipOpen(true);
         setTimeout(() => {
-          setTooltipText("Copy Task ID"); // Revert tooltip after a delay
-        }, 1500); // Tooltip will reset after 1.5 seconds
+          setTooltipText("Copy Task ID");
+          setTooltipOpen(false);
+        }, 1500); 
       } catch (error) {
         setTooltipText("Failed to copy");
+        setTooltipOpen(true);
+        setTimeout(() => setTooltipOpen(false), 1500);
       }
     }
   };
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} {...dialogStyle}>
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
         <DialogTitle>
           Edit Work Order
           {workOrder?.workOrderId && (
-            <Tooltip title={tooltipText} arrow>
+            <Tooltip
+              title={tooltipText}
+              arrow
+              open={!isMobile && tooltipOpen} // Tooltip only shows on desktop and when hovered/clicked
+              onClose={() => setTooltipOpen(false)}
+              disableHoverListener={isMobile} // Disable hover on mobile
+              placement="top"
+            >
               <Chip
                 label={`Task ID: ${workOrder.workOrderId}`}
                 onClick={handleCopyTaskId}
+                onTouchEnd={handleCopyTaskId} // For mobile, tap works without hover
                 sx={{ float: 'right', cursor: 'pointer', fontWeight: 'bold', color: 'primary.main' }}
               />
             </Tooltip>
@@ -289,11 +289,11 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
         <DialogContent>
           <DialogContentText>Update the work order details below:</DialogContentText>
 
-          <Tabs 
-            value={selectedTab} 
+          <Tabs
+            value={selectedTab}
             onChange={handleTabChange}
-            variant="scrollable" 
-            scrollButtons={false} 
+            variant="scrollable"
+            scrollButtons={false}
           >
             <Tab label="Work Order Details" />
             <Tab label="Notes and Updates" />
@@ -374,7 +374,7 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
                     value={formData.description}
                     fullWidth
                     multiline
-                    rows={isMobile ? 3 : 6} // Responsive rows for mobile
+                    rows={isMobile ? 3 : 6}
                     margin="normal"
                     disabled
                   />
@@ -395,7 +395,7 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
                 onChange={handleChange}
                 fullWidth
                 multiline
-                rows={isMobile ? 3 : 5} // Responsive text field rows
+                rows={isMobile ? 3 : 5}
                 margin="normal"
               />
               <Button variant="contained" color="primary" onClick={handleAddNote}>
