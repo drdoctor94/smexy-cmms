@@ -19,7 +19,11 @@ import {
   IconButton,
   Snackbar,
   Tooltip,
-  Chip
+  Chip,
+  Card,
+  CardContent,
+  CardActions,
+  Divider
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
@@ -75,6 +79,7 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [tooltipText, setTooltipText] = useState("Copy Task ID");
   const [tooltipOpen, setTooltipOpen] = useState(false); // Control tooltip state
+  const [copied, setCopied] = useState(false); // State to track if the chip was clicked
   const [selectedFiles, setSelectedFiles] = useState([]); // State for file selection
 
   useEffect(() => {
@@ -163,7 +168,6 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     }
   };
 
-  // Function to handle file selection for uploading attachments
   const handleFileChange = (e) => {
     setSelectedFiles(e.target.files);
   };
@@ -245,16 +249,18 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     setSnackbarOpen(false);
   };
 
+  // Function to handle copying the Task ID
   const handleCopyTaskId = async () => {
     if (workOrder?.workOrderId) {
       try {
         await navigator.clipboard.writeText(workOrder.workOrderId);
         setTooltipText("Copied!");
         setTooltipOpen(true);
+        setCopied(true);  // Set copied state to true
         setTimeout(() => {
-          setTooltipText("Copy Task ID");
           setTooltipOpen(false);
-        }, 1500); 
+          setCopied(false);  // Reset copied state after tooltip disappears
+        }, 1500);
       } catch (error) {
         setTooltipText("Failed to copy");
         setTooltipOpen(true);
@@ -263,23 +269,33 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     }
   };
 
+  // Function to handle mouse enter and reset the tooltip to "Copy Task ID"
+  const handleMouseEnter = () => {
+    if (!copied) {
+      setTooltipText("Copy Task ID");
+      setTooltipOpen(true); // Open tooltip on hover
+    }
+  };
+
   return (
     <>
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" fullScreen={isMobile}>
         <DialogTitle>
           Edit Work Order
           {workOrder?.workOrderId && (
             <Tooltip
               title={tooltipText}
               arrow
-              open={!isMobile && tooltipOpen} // Tooltip only shows on desktop and when hovered/clicked
+              open={tooltipOpen} // Tooltip only shows when clicked or hovered
               onClose={() => setTooltipOpen(false)}
-              disableHoverListener={isMobile} // Disable hover on mobile
+              disableHoverListener={isMobile || copied} // Disable hover when copied is true
               placement="top"
             >
               <Chip
                 label={`Task ID: ${workOrder.workOrderId}`}
                 onClick={handleCopyTaskId}
+                onMouseEnter={handleMouseEnter} // Handle mouse enter to reset tooltip text
+                onMouseLeave={() => !isMobile && setTooltipOpen(false)} // Only close on hover out if not copied
                 onTouchEnd={handleCopyTaskId} // For mobile, tap works without hover
                 sx={{ float: 'right', cursor: 'pointer', fontWeight: 'bold', color: 'primary.main' }}
               />
@@ -383,46 +399,51 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
             </Box>
           )}
 
-          {selectedTab === 1 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Add new note
-              </Typography>
-              <TextField
-                label="Add new note"
-                name="newNote"
-                value={formData.newNote}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                rows={isMobile ? 3 : 5}
-                margin="normal"
-              />
-              <Button variant="contained" color="primary" onClick={handleAddNote}>
-                Add Note
-              </Button>
+{selectedTab === 1 && (
+  <Box>
+    <Typography variant="h6" gutterBottom>
+      Add new note
+    </Typography>
+    <TextField
+      label="Add new note"
+      name="newNote"
+      value={formData.newNote}
+      onChange={handleChange}
+      fullWidth
+      multiline
+      rows={isMobile ? 3 : 5}
+      margin="normal"
+    />
+    <Button variant="contained" color="primary" onClick={handleAddNote}>
+      Add Note
+    </Button>
 
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Notes History
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                {formData.notesHistory.map((note, index) => (
-                  <Box key={index} sx={{ mb: 2, borderBottom: '1px solid #ccc', pb: 1 }}>
-                    <Typography variant="body2">
-                      <strong>{note.username}</strong> at{' '}
-                      {new Date(note.timestamp).toLocaleString()}:
-                    </Typography>
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                      {note.note}
-                    </Typography>
-                    <IconButton size="small" onClick={() => handleDeleteNote(index)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
+    <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+      Notes History
+    </Typography>
+    <Box sx={{ mt: 2 }}>
+      {formData.notesHistory.map((note, index) => (
+        <Card key={index} sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="subtitle2" color="textSecondary">
+              <strong>{note.username}</strong> at {new Date(note.timestamp).toLocaleString()}
+            </Typography>
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+              {note.note}
+            </Typography>
+          </CardContent>
+          <CardActions disableSpacing sx={{ justifyContent: 'flex-end' }}>
+            <IconButton size="small" onClick={() => handleDeleteNote(index)}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </CardActions>
+        </Card>
+      ))}
+    </Box>
+  </Box>
+)}
+
 
           {selectedTab === 2 && (
             <Box>
