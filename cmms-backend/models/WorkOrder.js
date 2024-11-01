@@ -72,8 +72,8 @@ const WorkOrderSchema = new mongoose.Schema({
   },
   priority: {
     type: String,
-    enum: ['Low', 'Medium', 'High'],
-    default: 'Medium',
+    enum: ['Low', 'Medium', 'High', 'Emergency'],
+    default: 'Low',
   },
   attachments: {
     type: [String], // Array of URLs or file paths

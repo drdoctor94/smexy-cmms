@@ -28,7 +28,7 @@ const taskTypes = [
   'Waste Issues',
 ];
 
-const priorities = ['Low', 'Medium', 'High'];
+const priorities = ['Low', 'Medium', 'High', 'Emergency'];
 
 const WorkOrderFormModal = ({ open, handleClose, onWorkOrderSubmit }) => {  // Include onWorkOrderSubmit prop
   const [formData, setFormData] = useState({

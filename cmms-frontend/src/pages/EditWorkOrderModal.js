@@ -23,10 +23,15 @@ import {
   Card,
   CardContent,
   CardActions,
-  Divider
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import AttachmentIcon from '@mui/icons-material/Attachment';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import axios from '../api/axiosConfig';
@@ -39,6 +44,8 @@ const statusMapping = {
   excluded: 'Excluded',
   're-opened': 'Re-Opened',
 };
+
+const priorityLevels = ['Low', 'Medium', 'High', 'Emergency'];
 
 const taskTypes = [
   'Clean Up / Spill',
@@ -72,6 +79,7 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     newNote: '',
     createdDate: '',
     attachments: [],
+    priority: 'Medium', // Default priority (added)
   });
 
   const [originalFormData, setOriginalFormData] = useState(null);
@@ -96,6 +104,8 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
           ? `${workOrder.submittedBy.firstName} ${workOrder.submittedBy.lastName}`
           : 'N/A',
         newNote: '',
+        status: workOrder.status || 'new',
+        priority: workOrder.priority || 'Medium',
       };
 
       setFormData(initialData);
@@ -196,7 +206,8 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
         ...formData,
         attachments: response.data.attachments,
       });
-
+      // Clear the selected files after upload is successful
+      setSelectedFiles([]);
       alert('Attachments uploaded successfully!');
     } catch (error) {
       alert('Failed to upload attachments. Please try again.');
@@ -249,17 +260,16 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     setSnackbarOpen(false);
   };
 
-  // Function to handle copying the Task ID
   const handleCopyTaskId = async () => {
     if (workOrder?.workOrderId) {
       try {
         await navigator.clipboard.writeText(workOrder.workOrderId);
         setTooltipText("Copied!");
         setTooltipOpen(true);
-        setCopied(true);  // Set copied state to true
+        setCopied(true);
         setTimeout(() => {
           setTooltipOpen(false);
-          setCopied(false);  // Reset copied state after tooltip disappears
+          setCopied(false);
         }, 1500);
       } catch (error) {
         setTooltipText("Failed to copy");
@@ -269,11 +279,10 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
     }
   };
 
-  // Function to handle mouse enter and reset the tooltip to "Copy Task ID"
   const handleMouseEnter = () => {
     if (!copied) {
       setTooltipText("Copy Task ID");
-      setTooltipOpen(true); // Open tooltip on hover
+      setTooltipOpen(true);
     }
   };
 
@@ -286,17 +295,17 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
             <Tooltip
               title={tooltipText}
               arrow
-              open={tooltipOpen} // Tooltip only shows when clicked or hovered
+              open={tooltipOpen}
               onClose={() => setTooltipOpen(false)}
-              disableHoverListener={isMobile || copied} // Disable hover when copied is true
+              disableHoverListener={isMobile || copied}
               placement="top"
             >
               <Chip
                 label={`Task ID: ${workOrder.workOrderId}`}
                 onClick={handleCopyTaskId}
-                onMouseEnter={handleMouseEnter} // Handle mouse enter to reset tooltip text
-                onMouseLeave={() => !isMobile && setTooltipOpen(false)} // Only close on hover out if not copied
-                onTouchEnd={handleCopyTaskId} // For mobile, tap works without hover
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={() => !isMobile && setTooltipOpen(false)}
+                onTouchEnd={handleCopyTaskId}
                 sx={{ float: 'right', cursor: 'pointer', fontWeight: 'bold', color: 'primary.main' }}
               />
             </Tooltip>
@@ -324,7 +333,7 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
                     <InputLabel>Status</InputLabel>
                     <Select
                       name="status"
-                      value={formData.status}
+                      value={formData.status || ''}
                       onChange={handleChange}
                       label="Status"
                     >
@@ -337,10 +346,26 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
                   </FormControl>
 
                   <FormControl fullWidth margin="normal" variant="outlined">
+                    <InputLabel>Priority</InputLabel>
+                    <Select
+                      name="priority"
+                      value={formData.priority || 'Medium'}
+                      onChange={handleChange}
+                      label="Priority"
+                    >
+                      {priorityLevels.map((priority) => (
+                        <MenuItem key={priority} value={priority}>
+                          {priority}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <FormControl fullWidth margin="normal" variant="outlined">
                     <InputLabel>Task Type</InputLabel>
                     <Select
                       name="taskType"
-                      value={formData.taskType}
+                      value={formData.taskType || ''}
                       onChange={handleChange}
                       label="Task Type"
                     >
@@ -399,51 +424,62 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
             </Box>
           )}
 
-{selectedTab === 1 && (
-  <Box>
-    <Typography variant="h6" gutterBottom>
-      Add new note
-    </Typography>
-    <TextField
-      label="Add new note"
-      name="newNote"
-      value={formData.newNote}
-      onChange={handleChange}
-      fullWidth
-      multiline
-      rows={isMobile ? 3 : 5}
-      margin="normal"
-    />
-    <Button variant="contained" color="primary" onClick={handleAddNote}>
-      Add Note
-    </Button>
+          {selectedTab === 1 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Add new note
+              </Typography>
+              <TextField
+                label="Add new note"
+                name="newNote"
+                value={formData.newNote}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={isMobile ? 3 : 2}
+                margin="normal"
+              />
+              <Button variant="contained" color="primary" onClick={handleAddNote}>
+                Add Note
+              </Button>
 
-    <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-      Notes History
-    </Typography>
-    <Box sx={{ mt: 2 }}>
-      {formData.notesHistory.map((note, index) => (
-        <Card key={index} sx={{ mb: 2 }}>
-          <CardContent>
-            <Typography variant="subtitle2" color="textSecondary">
-              <strong>{note.username}</strong> at {new Date(note.timestamp).toLocaleString()}
-            </Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-              {note.note}
-            </Typography>
-          </CardContent>
-          <CardActions disableSpacing sx={{ justifyContent: 'flex-end' }}>
-            <IconButton size="small" onClick={() => handleDeleteNote(index)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </CardActions>
-        </Card>
-      ))}
-    </Box>
-  </Box>
-)}
-
+              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                Notes History
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                {formData.notesHistory.slice().reverse().map((note, index) => (
+                  <Card
+                    key={index}
+                    sx={{
+                      mb: 2,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      bgcolor: '#262626',
+                      border: '1px solid',
+                      borderColor: '#878787',
+                      boxShadow: 6,
+                    }}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="subtitle2" color="#FFBC40">
+                        <strong>{note.username}</strong> at {new Date(note.timestamp).toLocaleString()}
+                      </Typography>
+                      <Divider sx={{ my: 1 }} />
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                        {note.note}
+                      </Typography>
+                    </CardContent>
+                    <CardActions>
+                      <IconButton size="small" onClick={() => handleDeleteNote(index)} sx={{ ml: 1 }}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+            </Box>
+          )}
 
           {selectedTab === 2 && (
             <Box>
@@ -451,34 +487,111 @@ const EditWorkOrderModal = ({ open, handleClose, workOrder, fetchWorkOrders }) =
                 Existing Attachments
               </Typography>
               {formData.attachments.length > 0 ? (
-                <Box>
+                <List>
                   {formData.attachments.map((attachment, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Typography>
-                        <button
-                          onClick={() => handleDownloadAttachment(attachment)}
-                          style={{ background: 'none', border: 'none', padding: 0, color: 'blue', textDecoration: 'underline', cursor: 'pointer' }}
-                        >
-                          {attachment.split('/').pop()}
-                        </button>
-                      </Typography>
+                    <ListItem key={index} sx={{ mb: 2 }}>
+                      <ListItemIcon>
+                        <AttachmentIcon />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            component="button"
+                            onClick={() => handleDownloadAttachment(attachment)}
+                            sx={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              color: '#FFBC40',
+                              textDecoration: 'none',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              '&:hover': {
+                                textDecoration: 'underline',
+                              },
+                            }}
+                          >
+                            {attachment.split('/').pop()}
+                          </Typography>
+                        }
+                      />
                       <IconButton onClick={() => handleDeleteAttachment(attachment.split('/').pop())}>
                         <DeleteIcon />
                       </IconButton>
-                    </Box>
+                    </ListItem>
                   ))}
-                </Box>
+                </List>
               ) : (
                 <Typography>No attachments available.</Typography>
               )}
 
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Upload New Attachments
-              </Typography>
-              <input type="file" multiple onChange={handleFileChange} />
-              <Button variant="contained" color="primary" onClick={handleUploadAttachments}>
-                Upload Attachments
-              </Button>
+<Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+  Upload New Attachments
+</Typography>
+<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+  <input
+    accept="*/*"
+    style={{ display: 'none' }}  // Hide the default input
+    id="upload-button-file"
+    multiple
+    type="file"
+    onChange={handleFileChange}
+  />
+  <label htmlFor="upload-button-file">
+    <Button variant="contained" component="span" sx={{ backgroundColor: '#FF4081', fontWeight: 'bold', flexShrink: 0 }}>
+      Choose Files
+    </Button>
+  </label>
+  <Button variant="contained" color="primary" onClick={handleUploadAttachments} sx={{ flexShrink: 0 }}>
+    Upload Attachments
+  </Button>
+</Box>
+
+{/* Display selected files as a list */}
+{selectedFiles.length > 0 && (
+  <Box sx={{ mt: 2, maxHeight: '150px', overflowY: 'auto', padding: '10px' }}>
+    <List sx={{ overflowY: 'auto' }}>
+      {Array.from(selectedFiles).map((file, index) => (
+        <Box
+          key={index}
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0px 13px',
+            backgroundColor: '#262626',
+            borderRadius: 1,
+            border: '1px solid #fff',  // Apply border only to individual attachment
+            mb: 1  // Margin between the attachment items
+          }}
+        >
+          <Typography
+            sx={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '80%',  // Prevents text from overflowing
+            }}
+          >
+            {file.name}
+          </Typography>
+          <IconButton
+            edge="end"
+            sx={{ color: '#fff' }}
+            onClick={() => {
+              const newFiles = Array.from(selectedFiles);
+              newFiles.splice(index, 1);
+              setSelectedFiles(newFiles);
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Box>
+      ))}
+    </List>
+  </Box>
+)}
+
             </Box>
           )}
         </DialogContent>

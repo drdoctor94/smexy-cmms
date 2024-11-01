@@ -18,10 +18,16 @@ import {
   Fab,
   Switch,
   FormControlLabel,
+  TextField,
+  Button,
+  Collapse,
+  MenuItem,
+  Select,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import axios from '../api/axiosConfig';
 import WorkOrderFormModal from './WorkOrderFormModal';
 import EditWorkOrderModal from './EditWorkOrderModal';
@@ -30,6 +36,28 @@ import EditWorkOrderModal from './EditWorkOrderModal';
 const capitalizeFirstLetter = (string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
+
+// Status, task types, and priorities from your existing values
+const taskTypes = [
+  'Clean Up / Spill',
+  'Cooling Issue',
+  'Electrical Issue',
+  'Equipment Repairs',
+  'Fire Safety',
+  'General Maintenance Request',
+  'Health and Safety',
+  'Heating Issues',
+  'Lighting Issues',
+  'Mechanical Issues',
+  'Painting / Touch Ups',
+  'Pest Control',
+  'Plumbing Issues',
+  'Waste Issues',
+];
+
+const priorities = ['Low', 'Medium', 'High', 'Emergency'];
+
+const statusOptions = ['New', 'Pending', 'Delayed', 'Closed', 'Excluded', 'Re-Opened'];
 
 const WorkOrderManagement = () => {
   const [workOrders, setWorkOrders] = useState([]);
@@ -41,10 +69,16 @@ const WorkOrderManagement = () => {
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('taskType');
   const [selected, setSelected] = useState([]);
-  const [dense, setDense] = useState(true); // Work Order Table is set to dense by default
-  const [currentUserRole, setCurrentUserRole] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [dense, setDense] = useState(true);
+  const [filterExpanded, setFilterExpanded] = useState(false); // Toggle for filter visibility
+
+  // State for filters
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedTaskType, setSelectedTaskType] = useState('');
+  const [selectedPriority, setSelectedPriority] = useState('');
+  const [keyword, setKeyword] = useState(''); // Add state for keyword search
 
   useEffect(() => {
     fetchCurrentUser();
@@ -56,16 +90,12 @@ const WorkOrderManagement = () => {
       const { role } = response.data.user;
 
       if (role === 'Admin' || role === 'Technician' || role === 'Tenant') {
-        setCurrentUserRole(role);
-        fetchWorkOrders(); // Fetch work orders if the user is authorized
+        fetchWorkOrders();
       } else {
-        setError('You do not have access to view this page.');
+        console.error('You do not have access to view this page.');
       }
     } catch (error) {
       console.error('Failed to fetch current user:', error);
-      setError('Failed to fetch current user.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -76,6 +106,63 @@ const WorkOrderManagement = () => {
       .catch((error) => console.error(error));
   };
 
+  // Filter function
+  const applyFilters = () => {
+    let filteredWorkOrders = [...workOrders];
+
+    // Filter by date range
+    if (fromDate && toDate) {
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+      filteredWorkOrders = filteredWorkOrders.filter((order) => {
+        const orderDate = new Date(order.createdDate);
+        return orderDate >= from && orderDate <= to;
+      });
+    }
+
+    // Filter by status (case insensitive)
+    if (selectedStatus) {
+      filteredWorkOrders = filteredWorkOrders.filter((order) => {
+        return (
+          order.status &&
+          order.status.toLowerCase().trim() === selectedStatus.toLowerCase().trim()
+        );
+      });
+    }
+
+    // Filter by task type (case insensitive)
+    if (selectedTaskType) {
+      filteredWorkOrders = filteredWorkOrders.filter((order) => {
+        return (
+          order.taskType &&
+          order.taskType.toLowerCase().trim() === selectedTaskType.toLowerCase().trim()
+        );
+      });
+    }
+
+    // Filter by priority (case insensitive)
+    if (selectedPriority) {
+      filteredWorkOrders = filteredWorkOrders.filter((order) => {
+        return (
+          order.priority &&
+          order.priority.toLowerCase().trim() === selectedPriority.toLowerCase().trim()
+        );
+      });
+    }
+
+    // Filter by keyword in description and notes (case insensitive)
+    if (keyword) {
+      const keywordLower = keyword.toLowerCase().trim();
+      filteredWorkOrders = filteredWorkOrders.filter((order) => {
+        const descriptionMatch = order.details?.toLowerCase().includes(keywordLower);
+        const notesMatch = order.notes?.some(note => note.toLowerCase().includes(keywordLower));
+        return descriptionMatch || notesMatch;
+      });
+    }
+
+    return filteredWorkOrders;
+  };
+
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
 
@@ -84,10 +171,7 @@ const WorkOrderManagement = () => {
     setEditModalOpen(true);
   };
 
-  const handleCloseEditModal = () => {
-    setEditModalOpen(false);
-    setSelectedWorkOrder(null);
-  };
+  const handleCloseEditModal = () => setEditModalOpen(false);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -118,9 +202,9 @@ const WorkOrderManagement = () => {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = workOrders.map((n) => n._id);
+      const newSelecteds = paginatedWorkOrders.map((n) => n._id); // Select only the filtered, visible work orders
       setSelected(newSelecteds);
-      return;
+      return; // Exit early since we already handled the selection
     }
     setSelected([]);
   };
@@ -175,17 +259,10 @@ const WorkOrderManagement = () => {
       .catch((error) => console.error('Failed to complete deletion of work orders', error));
   };
 
-  const paginatedWorkOrders = workOrders
+  const filteredWorkOrders = applyFilters();
+  const paginatedWorkOrders = filteredWorkOrders
     .sort(sortComparator)
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
-  if (isLoading) {
-    return <Typography>Loading...</Typography>;
-  }
-
-  if (error) {
-    return <Typography>{error}</Typography>;
-  }
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -225,11 +302,11 @@ const WorkOrderManagement = () => {
             onClick={handleOpenModal}
             sx={{
               ml: 2,
-              width: 45, // Ensures width is the same as height
-              height: 45, // Same height to maintain the circular shape
-              borderRadius: '50%', // Ensures it's a perfect circle
-              minWidth: '45px', // Prevents shrinking below this size
-              minHeight: '45px', // Prevents shrinking below this size
+              width: 45,
+              height: 45,
+              borderRadius: '50%',
+              minWidth: '45px',
+              minHeight: '45px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -245,23 +322,112 @@ const WorkOrderManagement = () => {
               </IconButton>
             </Tooltip>
           )}
+
+          {/* Filter Toggle Button */}
+          <IconButton onClick={() => setFilterExpanded(!filterExpanded)}>
+            <ManageSearchIcon />
+          </IconButton>
         </Toolbar>
 
-        {/* Updated TableContainer without touchAction and adjusted styles */}
-        <TableContainer
-          sx={{
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            msOverflowStyle: '-ms-autohiding-scrollbar',
-          }}
-        >
+        {/* Collapsible Filters */}
+        <Collapse in={filterExpanded} timeout="auto" unmountOnExit>
+          <Box sx={{ display: 'flex', gap: 2, p: 2 }}>
+            <TextField
+              label="From Date (MM-DD-YYYY)"
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            />
+            <TextField
+              label="To Date (MM-DD-YYYY)"
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            />
+            <TextField
+              label="Status"
+              select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {statusOptions.map((status) => (
+                <MenuItem key={status} value={status}>
+                  {status}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Task Type"
+              select
+              value={selectedTaskType}
+              onChange={(e) => {
+                setSelectedTaskType(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {taskTypes.map((task) => (
+                <MenuItem key={task} value={task}>
+                  {task}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Priority"
+              select
+              value={selectedPriority}
+              onChange={(e) => {
+                setSelectedPriority(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {priorities.map((priority) => (
+                <MenuItem key={priority} value={priority}>
+                  {priority}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Keyword Search"
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                applyFilters(); // Apply filters when the value changes
+              }}
+              fullWidth
+            />
+          </Box>
+        </Collapse>
+
+        {/* Table */}
+        <TableContainer>
           <Table size={dense ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ width: '50px' }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < workOrders.length}
-                    checked={workOrders.length > 0 && selected.length === workOrders.length}
+                    indeterminate={selected.length > 0 && selected.length < paginatedWorkOrders.length}
+                    checked={paginatedWorkOrders.length > 0 && selected.length === paginatedWorkOrders.length}
                     onChange={handleSelectAllClick}
                   />
                 </TableCell>
@@ -349,7 +515,7 @@ const WorkOrderManagement = () => {
 
         <TablePagination
           component="div"
-          count={workOrders.length}
+          count={filteredWorkOrders.length}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
